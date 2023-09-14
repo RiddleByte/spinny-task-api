@@ -38,90 +38,146 @@ class BoxViewSet(
         serializer.validated_data.pop("created_at", None)
         super().perform_update(serializer)
 
-    def check_conditions(self):
-        all_boxes = AdminBoxSerializer(Box.objects.filter(), many=True).data
-        average_area = sum([box["area"] for box in all_boxes]) / len(all_boxes)
+    def create(self, request, *args, **kwargs):
+        self.permission_classes = [permissions.IsAuthenticated, IsStaffUser]
+        self.serializer_class = AdminBoxSerializer
+        request.data["created_by"] = request.user.id
+      
+        length = float(request.data.get("length", 0))  
+        breadth = float(request.data.get("breadth", 0))
+        height = float(request.data.get("height", 0))
+
+        average_area = (length * breadth) if length > 0 and breadth > 0 else 0
+        average_volume = (length * breadth * height) if length > 0 and breadth > 0 and height > 0 else 0
+        
         if average_area >= A1:
             return Response(
                 {"error": "Average area of all boxes exceeds A1"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        user_boxes = Box.objects.filter(created_by=self.request.user)
-        average_volume = sum([box["volume"] for box in user_boxes]) / len(user_boxes)
+
         if average_volume >= V1:
             return Response(
-                {"error":"Average volume of user's boxes exceeds V1"},
-                status=status.HTTP_400_BAD_REQUEST
-                )
-        
+                {"error": "Average volume of user's boxes exceeds V1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         current_week_start = timezone.now() - timedelta(days=timezone.now().weekday())
         current_week_end = current_week_start + timedelta(days=6)
         week_boxes_count = Box.objects.filter(
             created_at__range=(current_week_start, current_week_end)
         ).count()
+
         if week_boxes_count >= L1:
             return Response(
                 {"error": "Total boxes added in a week exceeds L1"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
         user_week_boxes_count = Box.objects.filter(
-            created_by=self.request.user,
+            created_by=request.user,
             created_at__range=(current_week_start, current_week_end)
         ).count()
+
         if user_week_boxes_count >= L2:
             return Response(
                 {"error": "Total boxes added in a week by the user exceeds L2"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    def create(self, request, *args, **kwargs):
-        self.permission_classes = [permissions.IsAuthenticated, IsStaffUser]
-        self.serializer_class = AdminBoxSerializer
-        request.data["created_by"] = request.user.id
-        error_response = self.check_conditions()
-        if error_response:
-            return error_response
-
-        current_week_start = timezone.now() - timedelta(days=timezone.now().weekday())
-        current_week_end = current_week_start + timedelta(days=6)
-        week_boxes_count = Box.objects.filter(
-            created_at__range=(current_week_start, current_week_end)
-        ).count()
-        if week_boxes_count >= L1:
-            return Response(
-                {"error": "Total boxes added in a week exceeds L1"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        
-        user_week_boxes_count = Box.objects.filter(
-        created_by=self.request.user,
-        created_at__range=(current_week_start, current_week_end)
-        ).count()
-        if user_week_boxes_count >= L2:
-            return Response(
-                {"error": "Total boxes added in a week by the user exceeds L2"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         return super().create(request, *args, **kwargs)
-
+    
     def partial_update(self, request, *args, **kwargs):
         self.permission_classes = [permissions.IsAuthenticated, IsStaffUser]
         self.serializer_class = AdminBoxSerializer
         request.data["updated_by"] = request.user.id
-        error_response = self.check_conditions()
-        if error_response:
-            return error_response
-        return super().partial_update(request, *args, **kwargs)
 
+        length = float(request.data.get("length", 0))  
+        breadth = float(request.data.get("breadth", 0))
+        height = float(request.data.get("height", 0))
+
+        average_area = (length * breadth) if length > 0 and breadth > 0 else 0
+        average_volume = (length * breadth * height) if length > 0 and breadth > 0 and height > 0 else 0
+        
+        if average_area >= A1:
+            return Response(
+                {"error": "Average area of all boxes exceeds A1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if average_volume >= V1:
+            return Response(
+                {"error": "Average volume of user's boxes exceeds V1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        current_week_start = timezone.now() - timedelta(days=timezone.now().weekday())
+        current_week_end = current_week_start + timedelta(days=6)
+        week_boxes_count = Box.objects.filter(
+            created_at__range=(current_week_start, current_week_end)
+        ).count()
+
+        if week_boxes_count >= L1:
+            return Response(
+                {"error": "Total boxes added in a week exceeds L1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_week_boxes_count = Box.objects.filter(
+            created_by=request.user,
+            created_at__range=(current_week_start, current_week_end)
+        ).count()
+
+        if user_week_boxes_count >= L2:
+            return Response(
+                {"error": "Total boxes added in a week by the user exceeds L2"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+    
     def destroy(self, request, *args, **kwargs):
         self.permission_classes = [permissions.IsAuthenticated, IsStaffUser]
         self.serializer_class = AdminBoxSerializer
-        error_response = self.check_conditions()
-        if error_response:
-            return error_response
+
+        length = float(request.data.get("length", 0))  
+        breadth = float(request.data.get("breadth", 0))
+        height = float(request.data.get("height", 0))
+
+        average_area = (length * breadth) if length > 0 and breadth > 0 else 0
+        average_volume = (length * breadth * height) if length > 0 and breadth > 0 and height > 0 else 0
+        
+        if average_area >= A1:
+            return Response(
+                {"error": "Average area of all boxes exceeds A1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if average_volume >= V1:
+            return Response(
+                {"error": "Average volume of user's boxes exceeds V1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        current_week_start = timezone.now() - timedelta(days=timezone.now().weekday())
+        current_week_end = current_week_start + timedelta(days=6)
+        week_boxes_count = Box.objects.filter(
+            created_at__range=(current_week_start, current_week_end)
+        ).count()
+
+        if week_boxes_count >= L1:
+            return Response(
+                {"error": "Total boxes added in a week exceeds L1"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_week_boxes_count = Box.objects.filter(
+            created_by=request.user,
+            created_at__range=(current_week_start, current_week_end)
+        ).count()
+
+        if user_week_boxes_count >= L2:
+            return Response(
+                {"error": "Total boxes added in a week by the user exceeds L2"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
         return super().destroy(request, *args, **kwargs)
+
 
     def list(self, request, *args, **kwargs):
         self.permission_classes = [permissions.IsAuthenticated]
